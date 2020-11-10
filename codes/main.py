@@ -9,6 +9,7 @@ from classification import *
 from rules_final import *
 from rewrite_html import *
 from bs4 import BeautifulSoup
+from datetime import datetime
 import paramiko
 import base64
 #raw_dir = "D:/ML_Cobe/ikomet/scoring/raw_html/JTD_TestData6_HTMLCleanup.html"
@@ -24,6 +25,8 @@ app = Flask(__name__)
 
 def h1_h6_heading_detection():
     try:
+        dt = datetime.now()
+        current_time = dt.microsecond
         print('original request',request);
         req = request.get_json();
         
@@ -37,14 +40,13 @@ def h1_h6_heading_detection():
         remote_file_path = os.path.join(remote_path,req['projectName'],req['workObjectID'],'HTML',req['fileName'])
         print('remote_file_path:',remote_file_path)
         remote_file = sftp_client.open(remote_file_path)
+        file_name = str(current_time)+'---separator---'+req['fileName'];
 
         print(req);
-
-        f = open(raw_dir+'/'+req['fileName'], "wb")
+        f = open(raw_dir+'/'+file_name, "wb")
         f.write(remote_file.read())
         f.close()
         remote_file.close()
-
 
         df1 = x_prep(raw_dir)
         df1.to_csv(temp_dir+'temp1.csv',index=False)
@@ -61,8 +63,10 @@ def h1_h6_heading_detection():
         df5 = rule_final(df4)
         df5.to_csv(temp_dir+"final_output.csv",index=False)
         html_create(df5)
-        sftp_client.put(rewrite_dir+req['fileName'],remote_file_path);
+        sftp_client.put(rewrite_dir+file_name,remote_file_path);
         print('success');
+        os.remove(rewrite_dir+file_name);
+        os.remove(raw_dir+file_name);
         return make_response(jsonify({"error":None}),200)
     except Exception as e:
         print(e);
